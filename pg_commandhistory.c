@@ -19,7 +19,6 @@
 PG_MODULE_MAGIC;
 
 void _PG_init(void);
-void _PG_fini(void);
 static void chistory_ExecutorEnd(QueryDesc *queryDesc);
 static void chistory_xact_callback(XactEvent event, void *arg);
 static void usr2_handler(SIGNAL_ARGS);
