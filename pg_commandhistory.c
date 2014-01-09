@@ -100,7 +100,7 @@ usr2_handler(SIGNAL_ARGS)
 	/*
 	 * Call the previous handler first, so they don't hav eto wait
 	 */
-	if (ImmediateInterruptOK)
+	if (ImmediateInterruptOK && InterruptHoldoffCount == 0 && CritSectionCount == 0)
 	{
 		ListCell *lc;
 		int i = 0;
