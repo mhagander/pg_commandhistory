@@ -12,6 +12,7 @@
 #include "funcapi.h"
 #include "access/xact.h"
 #include "utils/memutils.h"
+#include "utils/timestamp.h"
 #include "miscadmin.h"
 
 #include <signal.h>
@@ -73,14 +74,36 @@ static void
 chistory_ExecutorEnd(QueryDesc *queryDesc)
 {
 	MemoryContext oldCtx;
+	struct timeval tv;
+	pg_time_t stamp_time;
+	char *logstr;
 
 	oldCtx = MemoryContextSwitchTo(TopTransactionContext);
+
+	/*
+	 * Store the timestamp as part of the text (!), so we leave as little
+	 * work as possible for the signal handler, to be on the safe side.
+	 *
+	 * Need memory for the length of the query, + 8 characters for the
+	 * timestamp + 1 space + the NULL byte.
+	 */
+	logstr = palloc(strlen(queryDesc->sourceText) + 8 + 2);
+
+	gettimeofday(&tv, NULL);
+	stamp_time = (pg_time_t) tv.tv_sec;
+	pg_strftime(logstr,
+				8, /* strlen("%H:%M:%S"), 2 digits each  */
+				"%H:%M:%S",
+				pg_localtime(&stamp_time, log_timezone));
+
+	logstr[8] = ' ';
+	strcpy(logstr+9, queryDesc->sourceText); /* adds NULL terminator */
 
 	/*
 	 * We can do lcons() on a NIL pointer in which case the list
 	 * is initialized for us.
 	 */
-	chistory_query_stack = lcons(pstrdup(queryDesc->sourceText), chistory_query_stack);
+	chistory_query_stack = lcons(logstr, chistory_query_stack);
 
 	MemoryContextSwitchTo(oldCtx);
 
