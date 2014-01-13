@@ -13,6 +13,7 @@
 #include "access/xact.h"
 #include "utils/memutils.h"
 #include "utils/timestamp.h"
+#include "utils/guc.h"
 #include "miscadmin.h"
 
 #include <signal.h>
@@ -27,6 +28,7 @@ static void usr2_handler(SIGNAL_ARGS);
 static ExecutorEnd_hook_type prev_ExecutorEnd = NULL;
 
 static List *chistory_query_stack;
+static char *tag;
 
 /*
  * Module load callback
@@ -35,6 +37,20 @@ void
 _PG_init(void)
 {
 	chistory_query_stack = NIL;
+
+	/*
+	 * Set up our custom variables
+	 */
+	DefineCustomStringVariable("pg_commandhistory.tag",
+							   "Logging tag used in this session",
+							   NULL,
+							   &tag,
+							   "",
+							   PGC_USERSET,
+							   0,
+							   NULL,
+							   NULL,
+							   NULL);
 
 	/*
 	 * Install hooks.
@@ -85,9 +101,9 @@ chistory_ExecutorEnd(QueryDesc *queryDesc)
 	 * work as possible for the signal handler, to be on the safe side.
 	 *
 	 * Need memory for the length of the query, + 8 characters for the
-	 * timestamp + 1 space + the NULL byte.
+	 * timestamp + length of tag + 2 paranthesis + 2 space + the NULL byte.
 	 */
-	logstr = palloc(strlen(queryDesc->sourceText) + 8 + 2);
+	logstr = palloc(strlen(queryDesc->sourceText) + strlen(tag) + 13);
 
 	gettimeofday(&tv, NULL);
 	stamp_time = (pg_time_t) tv.tv_sec;
@@ -96,8 +112,13 @@ chistory_ExecutorEnd(QueryDesc *queryDesc)
 				"%H:%M:%S",
 				pg_localtime(&stamp_time, log_timezone));
 
+	/* Length is validated above, so we know there will be room */
 	logstr[8] = ' ';
-	strcpy(logstr+9, queryDesc->sourceText); /* adds NULL terminator */
+	logstr[9] = '(';
+	logstr[10] = '\0';
+	strcat(logstr, tag);
+	strcat(logstr, ") ");
+	strcat(logstr, queryDesc->sourceText);
 
 	/*
 	 * We can do lcons() on a NIL pointer in which case the list

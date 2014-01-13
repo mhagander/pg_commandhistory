@@ -51,10 +51,22 @@ Once this signal is sent, the extension will dump the information into the
 standard PostgreSQL logs, where you will get something like
 
 	2014-01-13 08:50:41 CET LOG:  Dumping SQL history for 23638
-	2014-01-13 08:50:41 CET LOG:  2: 08:50:37 select 42;
-	2014-01-13 08:50:41 CET LOG:  2: 08:50:34 select 3;
-	2014-01-13 08:50:41 CET LOG:  3: 08:50:32 select 1;
+	2014-01-13 08:50:41 CET LOG:  2: 08:50:37 () select 42;
+	2014-01-13 08:50:41 CET LOG:  2: 08:50:34 () select 3;
+	2014-01-13 08:50:41 CET LOG:  3: 08:50:32 () select 1;
 	2014-01-13 08:50:41 CET LOG:  End of SQL history dump for 23638
 
 Note that the list of queries is dumped in reverse, with the most recent
 query written first.
+
+Configuration parameters
+------------------------
+You can set a value of the parameter `pg_commandhistory.tag` at any point
+during your session. The value of this parameter will be recordet at each
+query and written to the log before the SQL query. This allows for easier
+tracking through the application. For a tag value of `foobar`, the output
+looks like this:
+
+	2014-01-13 14:28:16 CET LOG:  Dumping SQL history for 26353
+	2014-01-13 14:28:16 CET LOG:  1: 14:28:09 (foobar) select 3;
+	...
